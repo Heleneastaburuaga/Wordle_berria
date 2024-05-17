@@ -107,19 +107,37 @@ app.get("/check-word", (req, res) => {
 });
 
 app.get("/get-word-from-ai", async (req, res) => {
-   let restrictions = JSON.parse(req.query.restrictions);
-let words;
-words = readWordsFromFile('words-es.txt');
-const dictionary= countLetterOccurrences(words, restrictions);
-let hitza;
-let word = null;
-
-while (word === null) {
-    hitza = await getWordFromAI(dictionary);
-    word = getMostSimilarWord(words, hitza);
-}
-
-res.json({ word, dictionary });
+    try {
+      // Extraer los parámetros de la query
+      const restrictions = JSON.parse(req.query.restrictions);
+      const incorrectLetters = JSON.parse(req.query.incorrectLetters);
+      const correctLettersWrongPosition = JSON.parse(req.query.correctLettersWrongPosition);
+      const correctLettersRightPosition = JSON.parse(req.query.correctLettersRightPosition);
+      const previousWords = JSON.parse(req.query.previousWords);
+  
+      // Leer las palabras del archivo y contar las ocurrencias de letras según las restricciones
+      let words = readWordsFromFile('words-es.txt');
+      let dictionary = countLetterOccurrences(words, restrictions);
+  
+      // Construir el objeto con todos los parámetros necesarios
+      const parameters = {
+        words, // Aquí agregamos el diccionario
+        dictionary,
+        previousWords,
+        incorrectLetters,
+        correctLettersWrongPosition,
+        correctLettersRightPosition,
+      };
+  
+      // Llamar a la función getWordFromAI con el objeto parameters
+      const word = await getWordFromAI(parameters);
+  
+      // Enviar la palabra generada de vuelta al cliente
+      res.json({ word, dictionary });
+    } catch (error) {
+      console.error('Error en /get-word-from-ai:', error);
+      res.status(500).json({ error: 'Error al obtener la palabra de la IA' });
+    }
 });
 
 // Iniciar el servidor en el puerto 5000

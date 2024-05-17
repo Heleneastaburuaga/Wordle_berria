@@ -13,6 +13,11 @@ function Board({ word, language, onWin, currentTurn, setCurrentTurn}) {
   const [wordFromAI, setWordFromAI] = useState('');
   const [dictionary, setDictionary] = useState({});
 
+  const [previousWords, setPreviousWords] = useState([]);
+  const [incorrectLetters, setIncorrectLetters] = useState([]);
+  const [correctLettersWrongPosition, setCorrectLettersWrongPosition] = useState([]);
+  const [correctLettersRightPosition, setCorrectLettersRightPosition] = useState([]);
+
   const [guesses, setGuesses] = useState({
     0: Array.from({ length: 5 }).fill(""),
     1: Array.from({ length: 5 }).fill(""),
@@ -32,24 +37,71 @@ function Board({ word, language, onWin, currentTurn, setCurrentTurn}) {
       fetchWordFromAI();
   }
   }, [currentTurn,dictionary]);
+
  console.log("Hitza ia: " + wordFromAI)
  const restrictions = {...dictionary};
     console.log("Restrictions: " + JSON.stringify(restrictions));
 
-  const fetchWordFromAI = async () => {
-    try {
-      const response = await fetch(`/get-word-from-ai?restrictions=${JSON.stringify(restrictions)}`);
-      if (!response.ok) {
-        throw new Error('Error al obtener la palabra de la IA desde el backend');
+    const fetchWordFromAI = async () => {
+      try {
+        const queryParams = new URLSearchParams({
+          restrictions: JSON.stringify(restrictions),
+          incorrectLetters: JSON.stringify(incorrectLetters),
+          correctLettersWrongPosition: JSON.stringify(correctLettersWrongPosition),
+          correctLettersRightPosition: JSON.stringify(correctLettersRightPosition),
+          previousWords: JSON.stringify(previousWords),
+        });
+    
+        const response = await fetch(`/get-word-from-ai?${queryParams}`);
+        if (!response.ok) {
+          throw new Error('Error al obtener la palabra de la IA desde el backend');
+        }
+        const data = await response.json();
+        setWordFromAI(data.word);
+        console.log(data.dictionary);
+      } catch (error) {
+        console.error(error);
       }
-      const data = await response.json();
-      setWordFromAI(data.word);
-      console.log(data.dictionary)
-    } catch (error) {
-      console.error(error);
-    }
-  };
+    };
   console.log("Hitza ia " + wordFromAI)
+  console.log("Array asmatu " + correctLettersRightPosition )
+  console.log("array amarillo " + correctLettersWrongPosition)
+  console.log("Array ez " + incorrectLetters)
+  console.log("Array sartutakoak " + previousWords)
+
+  const updateArrays = (aiWord, targetWord) => {
+    const newIncorrectLetters = [];
+    const newCorrectLettersWrongPosition = [];
+    const newCorrectLettersRightPosition = [];
+
+    // Convertir ambas palabras a minúsculas para hacer la comparación insensible a mayúsculas y minúsculas
+    const aiWordLower = aiWord.toLowerCase();
+    const targetWordLower = targetWord.toLowerCase();
+
+    for (let i = 0; i < aiWord.length; i++) {
+        const letter = aiWordLower[i]; // Utiliza la versión en minúsculas de la letra de la palabra adivinada
+
+        if (!targetWordLower.includes(letter)) {
+            if (!incorrectLetters.includes(letter)) {
+                newIncorrectLetters.push(letter);
+            }
+        } else if (targetWordLower[i] === letter) {
+            if (!correctLettersRightPosition.includes(letter)) {
+                newCorrectLettersRightPosition.push(letter);
+            }
+        } else {
+            if (!correctLettersWrongPosition.includes(letter)) {
+                newCorrectLettersWrongPosition.push(letter);
+            }
+        }
+    }
+
+    // Actualiza los arrays de letras con las nuevas letras encontradas
+    setIncorrectLetters([...incorrectLetters, ...newIncorrectLetters]);
+    setCorrectLettersWrongPosition([...correctLettersWrongPosition, ...newCorrectLettersWrongPosition]);
+    setCorrectLettersRightPosition([...correctLettersRightPosition, ...newCorrectLettersRightPosition]);
+};
+
 
   useEffect(() => {
     setTurn(1);
@@ -69,6 +121,12 @@ function Board({ word, language, onWin, currentTurn, setCurrentTurn}) {
   }, [language]);
 
  
+  useEffect(() => {
+    if (wordFromAI) {
+        updateArrays(wordFromAI, word);
+        setPreviousWords([...previousWords, wordFromAI]);
+    }
+}, [wordFromAI]);
 
   function countLetters(string) {
     const counts = {};
